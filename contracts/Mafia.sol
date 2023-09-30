@@ -9,7 +9,7 @@ import "hardhat/console.sol";
 contract Mafia is EIP712WithModifier {
     event JoinGame(address _playerAddress, address[] playerAddresses);
     event InitGame(uint8 _gameCount);
-    event Action(address _playerAddress, uint8 _actionCount);
+    event Action(address _playerAddress, address[] playersTakenAction);
     event NextDay(bool _killed);
     event CastVote(address _voter, uint8 _playerId);
     event CheckMafia(bool _mafiaKilled);
@@ -45,7 +45,8 @@ contract Mafia is EIP712WithModifier {
     ebool public isCaught;
 
     address[] public playersList;
-    uint8 public playerKilled;
+    address[] public playersTakenActions;
+    uint8 public playerKilled = 255;
     uint8 public largestVoteCount;
     uint8 public playerIdWithLargestVoteCount;
     uint8 public actionCount;
@@ -64,8 +65,9 @@ contract Mafia is EIP712WithModifier {
     }
 
     function initializeGame(bytes[] calldata roles) public {
-        require(playersList.length == 3);
-        for (uint8 i = 0; i < 3; i++) {
+        require(playersList.length > 3);
+        require(roles.length == playersList.length);
+        for (uint8 i = 0; i < playersList.length; i++) {
             players[playersList[i]] = Player(i, playersList[i], TFHE.asEuint8(roles[i]), true);
             idToPlayer[i] = Player(i, playersList[i], TFHE.asEuint8(roles[i]), true);
         }
@@ -82,7 +84,7 @@ contract Mafia is EIP712WithModifier {
         isCaught = TFHE.asEbool(false);
         voteCount = 0;
         actionCount = 0;
-        for (uint8 i = 0; i < 3; i++) {
+        for (uint8 i = 0; i < playersList.length; i++) {
             players[playersList[i]].role = TFHE.asEuint8(roles[i]);
             players[playersList[i]].alive = true;
         }
@@ -92,7 +94,7 @@ contract Mafia is EIP712WithModifier {
 
     // join the game
     function joinGame() public {
-        require(playersList.length < 3);
+        require(playersList.length < 5);
         require(!joinedGame[msg.sender]);
         playersList.push(msg.sender);
         joinedGame[msg.sender] = true;
@@ -120,12 +122,13 @@ contract Mafia is EIP712WithModifier {
         );
 
         hasTakenAction[msg.sender] = true;
-        emit Action(msg.sender, actionCount);
-        if (actionCount == 2) {
+        playersTakenActions.push(msg.sender);
+        emit Action(msg.sender, playersTakenActions);
+        if (actionCount == playersList.length - 1) {
             revealNextDay();
-        } else {
-            actionCount++;
+            playersTakenActions = new address[](0);
         }
+        actionCount++;
     }
 
     function revealNextDay() public {
@@ -196,7 +199,7 @@ contract Mafia is EIP712WithModifier {
             tieExists = false;
         }
         emit Voted(msg.sender, _playerId, playerVoteCount[_playerId]);
-        if (voteCount == 2) {
+        if (voteCount == 4) {
             checkIfMafiaKilled();
         } else {
             voteCount++;
