@@ -18,7 +18,7 @@ describe("Unit tests", function () {
     this.signers.eve = signers[5];
     this.signers.frank = signers[6];
 
-    const amountToSend = "1000000000000";
+    const amountToSend = "1000000000000000";
 
     await this.signers.admin.sendTransaction({
       to: this.signers.alice,
@@ -55,6 +55,11 @@ describe("Unit tests", function () {
       const fhevmjs = await getInstance(this.contractAddress, ethers);
       this.fhevmjs = fhevmjs;
     });
+
+    // it("builds mafia factory", async function() {
+    //   const factoryTx =  await this.mafiaFactory.connect(this.signers.alice).deployGame();
+    //   factoryTx.wait();
+    // });
 
     // it("3 players should join the game", async function () {
     // tx =  await this.mafiaFactory.connect(this.signers.alice).deployGame();
@@ -124,16 +129,16 @@ describe("Unit tests", function () {
 
       expect(result).to.be.equal(255); // dave is saved by doctor
 
-      // await expect(action4TxReceipt)
-      //   .to.emit(this.mafia, "Action")
-      //   .withArgs(this.signers.dave.address, [
-      //     this.signers.alice.address,
-      //     this.signers.bob.address,
-      //     this.signers.carol.address,
-      //     this.signers.dave.address,
-      //   ]);
+      await expect(action4TxReceipt)
+        .to.emit(this.mafia, "Action")
+        .withArgs(this.signers.dave.address, [
+          this.signers.alice.address,
+          this.signers.bob.address,
+          this.signers.carol.address,
+          this.signers.dave.address,
+        ]);
 
-      // await expect(action4TxReceipt).to.emit(this.mafia, "NewState").withArgs(2);
+      await expect(action4TxReceipt).to.emit(this.mafia, "NewState").withArgs(2);
 
       const vote1Tx = await this.mafia.connect(this.signers.alice).castVote(2); //alice votes to kill carol
       const vote2Tx = await this.mafia.connect(this.signers.bob).castVote(0); //alice votes to kill mafia
@@ -141,7 +146,11 @@ describe("Unit tests", function () {
       const vote4Tx = await this.mafia.connect(this.signers.dave).castVote(0); //alice votes to kill mafia
 
       const vote4txReceipt = await vote4Tx.wait();
+      await expect(vote4txReceipt).to.emit(this.mafia, "NewState").withArgs(3); //check last stage of game
 
+      const resultMafiaKilled = await this.mafia.isMafiaKilled();
+
+      expect(resultMafiaKilled).to.be.equal(1); // dave is saved by doctor
       
 
     });

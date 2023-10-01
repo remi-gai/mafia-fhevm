@@ -162,6 +162,7 @@ contract Mafia is EIP712WithModifier {
             idToPlayer[playerKilled].alive = false;
             players[idToPlayer[playerKilled].playerAddress].alive = false;
             voteCount++;
+            playerCount--;
             // Emit dead event
             emit NextDay(true);
             emit Killed(playerKilled);
@@ -239,10 +240,27 @@ contract Mafia is EIP712WithModifier {
             emit CheckMafia(true);
         } else {
             isMafiaKilled = 0; //false
+            _resetDay();
             emit CheckMafia(false);
-            // if amount of players > 2
-            // reset game state back to 1
-            // emit NewState event
+            if (playerCount > 2) {
+                gameState = 1;
+                emit NewState(gameState);
+            }
         }
+    }
+
+    function _resetDay() internal {
+        killedPlayerId;
+        savedPlayerId;
+        investigatedPlayerId;
+        isCaught;
+        playerKilled = 255;
+        largestVoteCount = 0;
+        playerIdWithLargestVoteCount = 0;
+        actionCount = 0;
+        voteCount = 0;
+        // uint8 public roundCount;
+        isMafiaKilled = 255;
+        tieExists = false;
     }
 }
