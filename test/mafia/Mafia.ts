@@ -56,7 +56,22 @@ describe("Unit tests", function () {
       this.fhevmjs = fhevmjs;
     });
 
-    it("3 players should join the game", async function () {
+    // it("3 players should join the game", async function () {
+    // tx =  await this.mafiaFactory.connect(this.signers.alice).deployGame();
+    // tx.await()
+    // tx.result -> gameAddress of the Mafia contract
+    // Mafia = await ethers.getContractFactory("Mafia");
+    // mafiaGame = await Mafia.attach(gameAddress);
+    // this.mafiaGame.connect(this.signers.alice).joinGame()
+    // ... rest is the same
+    // });
+
+    // TODO:
+    // 1) first finish writing test for 1 night game -> make sure to handle cases in which doctor saves the player
+    // 2) writing test for multi night game
+    // 3) Then refactoring with the Factory pattern
+
+    it("4 players should join the game", async function () {
       const transaction1 = await this.mafia.connect(this.signers.alice).joinGame();
       const transaction2 = await this.mafia.connect(this.signers.bob).joinGame();
       const transaction3 = await this.mafia.connect(this.signers.carol).joinGame();

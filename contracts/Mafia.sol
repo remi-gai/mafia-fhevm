@@ -6,6 +6,21 @@ import "fhevm/abstracts/EIP712WithModifier.sol";
 import "fhevm/lib/TFHE.sol";
 import "hardhat/console.sol";
 
+// contract MafiaFactory {
+//     mapping(uint => address) games;
+//     uint256 public roomId;
+//     event InitGame(address creator, uint256 roomId);
+
+//     function createGame() public returns (address) {
+//         Mafia newGame = new Mafia(msg.sender);
+//         games[roomId] = address(newGame);
+//         roomId++;
+
+//         emit InitGame(msg.sender, roomId);
+//         return address(newGame);
+//     }
+// }
+
 contract Mafia is EIP712WithModifier {
     event JoinGame(address _playerAddress, address[] playerAddresses);
     event InitGame(uint8 _gameCount);
@@ -51,10 +66,15 @@ contract Mafia is EIP712WithModifier {
     uint8 public playerIdWithLargestVoteCount;
     uint8 public actionCount;
     uint8 public voteCount;
+    // uint8 public roundCount;
     uint8 public isMafiaKilled = 255;
     bool public tieExists = false;
 
     event Voted(address voter, uint8 playerId, uint8 votes);
+
+    // constructor(address _ownerAddress) EIP712WithModifier("Authorization token", "1") {
+    //     owner = _ownerAddress;
+    // }
 
     constructor() EIP712WithModifier("Authorization token", "1") {
         owner = msg.sender;
@@ -199,8 +219,10 @@ contract Mafia is EIP712WithModifier {
             tieExists = false;
         }
         emit Voted(msg.sender, _playerId, playerVoteCount[_playerId]);
+        // TODO: playersList.length
         if (voteCount == 4) {
             checkIfMafiaKilled();
+            // reset vote count back to 0
         } else {
             voteCount++;
         }
@@ -218,6 +240,9 @@ contract Mafia is EIP712WithModifier {
         } else {
             isMafiaKilled = 0; //false
             emit CheckMafia(false);
+            // if amount of players > 2
+            // reset game state back to 1
+            // emit NewState event
         }
     }
 }
