@@ -117,7 +117,7 @@ describe("Unit tests", function () {
       const action3Tx = await this.mafia.connect(this.signers.carol).action(this.fhevmjs.encrypt8(3)); // doctor saves dave
       const action4Tx = await this.mafia.connect(this.signers.dave).action(this.fhevmjs.encrypt8(3)); // dave takes action on dave
 
-      this.timeout(80000);
+      this.timeout(120000);
       const action4TxReceipt = await action4Tx.wait();
 
       const result = await this.mafia.playerKilled();
@@ -134,6 +134,17 @@ describe("Unit tests", function () {
       //   ]);
 
       // await expect(action4TxReceipt).to.emit(this.mafia, "NewState").withArgs(2);
+
+      const vote1Tx = await this.mafia.connect(this.signers.alice).castVote(2); //alice votes to kill carol
+      const vote2Tx = await this.mafia.connect(this.signers.bob).castVote(0); //alice votes to kill mafia
+      const vote3Tx = await this.mafia.connect(this.signers.carol).castVote(0); //alice votes to kill mafia
+      const vote4Tx = await this.mafia.connect(this.signers.dave).castVote(0); //alice votes to kill mafia
+
+      const vote4txReceipt = await vote4Tx.wait();
+
     });
+
+
+
   });
 });
