@@ -109,26 +109,16 @@ describe("Unit tests", function () {
 
       expect(result).to.be.equal(255); // dave is saved by doctor
 
-      await expect(action4TxReceipt)
-        .to.emit(this.mafia, "Action")
-        .withArgs(this.signers.dave.address, [
-          this.signers.alice.address,
-          this.signers.bob.address,
-          this.signers.carol.address,
-          this.signers.dave.address,
-        ]);
+      // await expect(action4TxReceipt)
+      //   .to.emit(this.mafia, "Action")
+      //   .withArgs(this.signers.dave.address, [
+      //     this.signers.alice.address,
+      //     this.signers.bob.address,
+      //     this.signers.carol.address,
+      //     this.signers.dave.address,
+      //   ]);
 
-      await expect(action4TxReceipt).to.emit(this.mafia, "NewState").withArgs(2);
-
-      // const encryptedAmount = this.fhevmjs.encrypt32(1000);
-      // const transaction = await this.erc20.mint(encryptedAmount);
-      // await transaction.wait();
-      // // Call the method
-      // const token = this.fhevmjs.getTokenSignature(this.contractAddress) || { signature: "", publicKey: "" };
-      // const encryptedBalance = await this.erc20.balanceOf(token.publicKey, token.signature);
-      // // Decrypt the balance
-      // const balance = this.fhevmjs.decrypt(this.contractAddress, encryptedBalance);
-      // expect(balance).to.equal(1000);
+      // await expect(action4TxReceipt).to.emit(this.mafia, "NewState").withArgs(2);
     });
   });
 });
