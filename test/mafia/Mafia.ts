@@ -82,6 +82,20 @@ describe("Unit tests", function () {
       const initializeGameTxReceipt = await initializeGameTx.wait();
       await expect(initializeGameTxReceipt).to.emit(this.mafia, "NewState").withArgs(1);
 
+      const generatedToken = this.fhevmjs.generateToken({
+        verifyingContract: this.contractAddress,
+      });
+      const signature = await this.signers.bob.signTypedData(
+        generatedToken.token.domain,
+        { Reencrypt: generatedToken.token.types.Reencrypt },
+        generatedToken.token.message,
+      );
+      const encryptedRole = await this.mafia.connect(this.signers.bob).viewOwnRole(generatedToken.publicKey, signature);
+
+      // Decrypt the role
+      const role = this.fhevmjs.decrypt(this.contractAddress, encryptedRole);
+      expect(role).to.equal(2);
+
       // playerId starts from 0
       const action1Tx = await this.mafia.connect(this.signers.alice).action(this.fhevmjs.encrypt8(3)); // mafia kills dave
       const action2Tx = await this.mafia.connect(this.signers.bob).action(this.fhevmjs.encrypt8(0)); // detective checks alice
@@ -95,16 +109,16 @@ describe("Unit tests", function () {
 
       expect(result).to.be.equal(255); // dave is saved by doctor
 
-      // await expect(action4TxReceipt)
-      //   .to.emit(this.mafia, "Action")
-      //   .withArgs(this.signers.dave.address, [
-      //     this.signers.alice.address,
-      //     this.signers.bob.address,
-      //     this.signers.carol.address,
-      //     this.signers.dave.address,
-      //   ]);
+      await expect(action4TxReceipt)
+        .to.emit(this.mafia, "Action")
+        .withArgs(this.signers.dave.address, [
+          this.signers.alice.address,
+          this.signers.bob.address,
+          this.signers.carol.address,
+          this.signers.dave.address,
+        ]);
 
-      // await expect(action4TxReceipt).to.emit(this.mafia, "NewState").withArgs(2);
+      await expect(action4TxReceipt).to.emit(this.mafia, "NewState").withArgs(2);
 
       // const encryptedAmount = this.fhevmjs.encrypt32(1000);
       // const transaction = await this.erc20.mint(encryptedAmount);
