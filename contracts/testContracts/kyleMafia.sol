@@ -10,12 +10,11 @@ contract MafiaFactory {
     mapping(uint => address) games;
     uint256 public roomId;
     event InitGame(address creator, uint256 roomId);
-
     function createGame() public returns (address) {
         Mafia newGame = new Mafia();
+        //Mafia newGame = new Mafia(msg.sender);
         games[roomId] = address(newGame);
         roomId++;
-
         emit InitGame(msg.sender, roomId);
         return address(newGame);
     }
@@ -70,6 +69,7 @@ contract Mafia is EIP712WithModifier {
     // uint8 public roundCount;
     uint8 public isMafiaKilled = 255;
     bool public tieExists = false;
+    uint8 public playerKillCount;
 
     event Voted(address voter, uint8 playerId, uint8 votes);
 
@@ -132,8 +132,8 @@ contract Mafia is EIP712WithModifier {
         hasTakenAction[roundCount][msg.sender] = true;
         playersTakenActions.push(msg.sender);
         emit Action(msg.sender, playersTakenActions);
-        if (actionCount == playersList.length - 1) {
-            revealNextDay();
+        if (actionCount == playersList.length - 1 - playerKillCount) {
+            //revealNextDay();
             playersTakenActions = new address[](0);
         }
         actionCount++;
@@ -151,6 +151,7 @@ contract Mafia is EIP712WithModifier {
             players[idToPlayer[playerKilled].playerAddress].alive = false;
             voteCount++;
             playerCount--;
+            playerKillCount++;
             // Emit dead event
             emit NextDay(true);
             emit Killed(playerKilled);
@@ -209,7 +210,7 @@ contract Mafia is EIP712WithModifier {
         }
         emit Voted(msg.sender, _playerId, playerVoteCount[roundCount][_playerId]);
         // TODO: playersList.length
-        if (voteCount == 4) {
+        if (voteCount == playersList.length - 1 - playerKillCount) {
             checkIfMafiaKilled();
             // reset vote count back to 0
         } else {

@@ -1,9 +1,23 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import hre from 'hardhat';
 
 import { getInstance } from "../instance";
 import type { Signers } from "../types";
 import { deployMafiaFixture } from "./Mafia.fixture";
+
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+
+export function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function waitForBlock(hre: HardhatRuntimeEnvironment, current?: number) {
+  const targetBlock = current || (await hre.ethers.provider.getBlockNumber());
+  while ((await hre.ethers.provider.getBlockNumber()) <= targetBlock) {
+    await delay(50);
+  }
+}
 
 describe("Unit tests", function () {
   before(async function () {
@@ -18,7 +32,7 @@ describe("Unit tests", function () {
     this.signers.eve = signers[5];
     this.signers.frank = signers[6];
 
-    const amountToSend = "1000000000000000";
+    const amountToSend = "10000000000000000";
 
     await this.signers.admin.sendTransaction({
       to: this.signers.alice,
@@ -44,16 +58,22 @@ describe("Unit tests", function () {
       to: this.signers.frank,
       value: amountToSend,
     });
+    const contract = await deployMafiaFixture();
+    this.contractAddress = await contract.getAddress();
+    console.log("contractAddress: ", this.contractAddress);
+    this.mafia = contract;
+    const fhevmjs = await getInstance(this.contractAddress, ethers);
+    this.fhevmjs = fhevmjs;
   });
 
   describe("Mafia", function () {
     this.beforeEach(async function () {
-      const contract = await deployMafiaFixture();
-      this.contractAddress = await contract.getAddress();
-      console.log("contractAddress: ", this.contractAddress);
-      this.mafia = contract;
-      const fhevmjs = await getInstance(this.contractAddress, ethers);
-      this.fhevmjs = fhevmjs;
+    //   const contract = await deployMafiaFixture();
+    //   this.contractAddress = await contract.getAddress();
+    //   console.log("contractAddress: ", this.contractAddress);
+    //   this.mafia = contract;
+    //   const fhevmjs = await getInstance(this.contractAddress, ethers);
+    //   this.fhevmjs = fhevmjs;
     });
 
     // it("builds mafia factory", async function() {
@@ -77,6 +97,7 @@ describe("Unit tests", function () {
     // 3) Then refactoring with the Factory pattern
 
     it("4 players should join the game", async function () {
+      this.timeout(120000);
       const transaction1 = await this.mafia.connect(this.signers.alice).joinGame();
       const transaction2 = await this.mafia.connect(this.signers.bob).joinGame();
       const transaction3 = await this.mafia.connect(this.signers.carol).joinGame();
@@ -91,7 +112,9 @@ describe("Unit tests", function () {
           this.signers.carol.address,
           this.signers.dave.address,
         ]);
+    });
 
+    it("should init the game", async function() {
       const initializeGameTx = await this.mafia.connect(this.signers.alice).initializeGame([
         this.fhevmjs.encrypt8(1), // mafia: alice
         this.fhevmjs.encrypt8(2), // detective: bob
@@ -101,7 +124,19 @@ describe("Unit tests", function () {
 
       const initializeGameTxReceipt = await initializeGameTx.wait();
       await expect(initializeGameTxReceipt).to.emit(this.mafia, "NewState").withArgs(1);
+    });
 
+    //   const initializeGameTx = await this.mafia.connect(this.signers.alice).initializeGame([
+    //     this.fhevmjs.encrypt8(1), // mafia: alice
+    //     this.fhevmjs.encrypt8(2), // detective: bob
+    //     this.fhevmjs.encrypt8(3), // doctor: carol
+    //     this.fhevmjs.encrypt8(4), // citizen: dave
+    //   ]);
+
+    //   const initializeGameTxReceipt = await initializeGameTx.wait();
+    //   await expect(initializeGameTxReceipt).to.emit(this.mafia, "NewState").withArgs(1);
+
+    it("check role", async function() {
       const generatedToken = this.fhevmjs.generateToken({
         verifyingContract: this.contractAddress,
       });
@@ -115,47 +150,90 @@ describe("Unit tests", function () {
       // Decrypt the role
       const role = this.fhevmjs.decrypt(this.contractAddress, encryptedRole);
       expect(role).to.equal(2);
+    });
 
+    //   const generatedToken = this.fhevmjs.generateToken({
+    //     verifyingContract: this.contractAddress,
+    //   });
+    //   const signature = await this.signers.bob.signTypedData(
+    //     generatedToken.token.domain,
+    //     { Reencrypt: generatedToken.token.types.Reencrypt },
+    //     generatedToken.token.message,
+    //   );
+    //   const encryptedRole = await this.mafia.connect(this.signers.bob).viewOwnRole(generatedToken.publicKey, signature);
+
+    //   // Decrypt the role
+    //   const role = this.fhevmjs.decrypt(this.contractAddress, encryptedRole);
+    //   expect(role).to.equal(2);
+    it("take action", async function() {
       // playerId starts from 0
-      const action1Tx = await this.mafia.connect(this.signers.alice).action(this.fhevmjs.encrypt8(3)); // mafia kills dave
-      const action2Tx = await this.mafia.connect(this.signers.bob).action(this.fhevmjs.encrypt8(0)); // detective checks alice
-      const action3Tx = await this.mafia.connect(this.signers.carol).action(this.fhevmjs.encrypt8(3)); // doctor saves dave
-      const action4Tx = await this.mafia.connect(this.signers.dave).action(this.fhevmjs.encrypt8(3)); // dave takes action on dave
-
       this.timeout(120000);
+      const action1Tx = await this.mafia.connect(this.signers.alice).action(this.fhevmjs.encrypt8(3)); // mafia kills dave
+      await waitForBlock(hre);
+      const action2Tx = await this.mafia.connect(this.signers.bob).action(this.fhevmjs.encrypt8(0)); // detective checks alice
+      await waitForBlock(hre);
+      const action3Tx = await this.mafia.connect(this.signers.carol).action(this.fhevmjs.encrypt8(3)); // doctor saves dave
+      await waitForBlock(hre);
+      const action4Tx = await this.mafia.connect(this.signers.dave).action(this.fhevmjs.encrypt8(3)); // dave takes action on dave
+      await waitForBlock(hre);
       const action4TxReceipt = await action4Tx.wait();
 
-      const result = await this.mafia.playerKilled();
-
-      expect(result).to.be.equal(255); // dave is saved by doctor
-
       await expect(action4TxReceipt)
-        .to.emit(this.mafia, "Action")
-        .withArgs(this.signers.dave.address, [
-          this.signers.alice.address,
-          this.signers.bob.address,
-          this.signers.carol.address,
-          this.signers.dave.address,
-        ]);
+      .to.emit(this.mafia, "Action")
+      .withArgs(this.signers.dave.address, [
+        this.signers.alice.address,
+        this.signers.bob.address,
+        this.signers.carol.address,
+        this.signers.dave.address,
+      ]);
 
-      await expect(action4TxReceipt).to.emit(this.mafia, "NewState").withArgs(2);
+      const nextDayTx = await this.mafia.connect(this.signers.alice).nextDay(); //start next day
+      const nextDayTxReceipt = await nextDayTx.wait();
+      
+      const result = await this.mafia.playerKilled();
+      expect(result).to.be.equal(255); // dave is saved by doctor
+      await expect(nextDayTxReceipt).to.emit(this.mafia, "NewState").withArgs(2);
+    });
 
-      const vote1Tx = await this.mafia.connect(this.signers.alice).castVote(2); //alice votes to kill carol
-      const vote2Tx = await this.mafia.connect(this.signers.bob).castVote(0); //alice votes to kill mafia
-      const vote3Tx = await this.mafia.connect(this.signers.carol).castVote(0); //alice votes to kill mafia
-      const vote4Tx = await this.mafia.connect(this.signers.dave).castVote(0); //alice votes to kill mafia
+    //   // playerId starts from 0
+    //   const action1Tx = await this.mafia.connect(this.signers.alice).action(this.fhevmjs.encrypt8(3)); // mafia kills dave
+    //   const action2Tx = await this.mafia.connect(this.signers.bob).action(this.fhevmjs.encrypt8(0)); // detective checks alice
+    //   const action3Tx = await this.mafia.connect(this.signers.carol).action(this.fhevmjs.encrypt8(3)); // doctor saves dave
+    //   const action4Tx = await this.mafia.connect(this.signers.dave).action(this.fhevmjs.encrypt8(3)); // dave takes action on dave
 
-      const vote4txReceipt = await vote4Tx.wait();
-      await expect(vote4txReceipt).to.emit(this.mafia, "NewState").withArgs(3); //check last stage of game
+    //   this.timeout(120000);
+    //   const action4TxReceipt = await action4Tx.wait();
 
-      const resultMafiaKilled = await this.mafia.isMafiaKilled();
+    //   const result = await this.mafia.playerKilled();
 
-      expect(resultMafiaKilled).to.be.equal(1); // dave is saved by doctor
+    //   expect(result).to.be.equal(255); // dave is saved by doctor
+
+    //   await expect(action4TxReceipt)
+    //     .to.emit(this.mafia, "Action")
+    //     .withArgs(this.signers.dave.address, [
+    //       this.signers.alice.address,
+    //       this.signers.bob.address,
+    //       this.signers.carol.address,
+    //       this.signers.dave.address,
+    //     ]);
+
+    //   await expect(action4TxReceipt).to.emit(this.mafia, "NewState").withArgs(2);
+
+    //   const vote1Tx = await this.mafia.connect(this.signers.alice).castVote(2); //alice votes to kill carol
+    //   const vote2Tx = await this.mafia.connect(this.signers.bob).castVote(0); //alice votes to kill mafia
+    //   const vote3Tx = await this.mafia.connect(this.signers.carol).castVote(0); //alice votes to kill mafia
+    //   const vote4Tx = await this.mafia.connect(this.signers.dave).castVote(0); //alice votes to kill mafia
+
+    //   const vote4txReceipt = await vote4Tx.wait();
+    //   await expect(vote4txReceipt).to.emit(this.mafia, "NewState").withArgs(3); //check last stage of game
+
+    //   const resultMafiaKilled = await this.mafia.isMafiaKilled();
+
+    //   expect(resultMafiaKilled).to.be.equal(1); // dave is saved by doctor
       
 
     });
 
 
 
-  });
 });

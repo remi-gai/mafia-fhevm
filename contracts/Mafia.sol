@@ -1,248 +1,248 @@
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+// // SPDX-License-Identifier: BSD-3-Clause-Clear
 
-pragma solidity >=0.8.13 <0.9.0;
+// pragma solidity >=0.8.13 <0.9.0;
 
-import "fhevm/abstracts/EIP712WithModifier.sol";
-import "fhevm/lib/TFHE.sol";
-import "hardhat/console.sol";
+// import "fhevm/abstracts/EIP712WithModifier.sol";
+// import "fhevm/lib/TFHE.sol";
+// import "hardhat/console.sol";
 
-contract MafiaFactory {
-    mapping(uint => address) games;
-    uint256 public roomId;
-    event InitGame(address creator, uint256 roomId);
+// contract MafiaFactory {
+//     mapping(uint => address) games;
+//     uint256 public roomId;
+//     event InitGame(address creator, uint256 roomId);
 
-    function createGame() public returns (address) {
-        Mafia newGame = new Mafia();
-        games[roomId] = address(newGame);
-        roomId++;
+//     function createGame() public returns (address) {
+//         Mafia newGame = new Mafia();
+//         games[roomId] = address(newGame);
+//         roomId++;
 
-        emit InitGame(msg.sender, roomId);
-        return address(newGame);
-    }
-}
+//         emit InitGame(msg.sender, roomId);
+//         return address(newGame);
+//     }
+// }
 
-contract Mafia is EIP712WithModifier {
-    event JoinGame(address _playerAddress, address[] playerAddresses);
-    event InitGame(uint8 _gameCount);
-    event Action(address _playerAddress, address[] playersTakenAction);
-    event NextDay(bool _killed);
-    event CastVote(address _voter, uint8 _playerId);
-    event CheckMafia(bool _mafiaKilled);
-    event Killed(uint8 _playerKilled);
-    event Exiled(uint8 _playerExiled);
-    event NewState(uint8 gameState);
+// contract Mafia is EIP712WithModifier {
+//     event JoinGame(address _playerAddress, address[] playerAddresses);
+//     event InitGame(uint8 _gameCount);
+//     event Action(address _playerAddress, address[] playersTakenAction);
+//     event NextDay(bool _killed);
+//     event CastVote(address _voter, uint8 _playerId);
+//     event CheckMafia(bool _mafiaKilled);
+//     event Killed(uint8 _playerKilled);
+//     event Exiled(uint8 _playerExiled);
+//     event NewState(uint8 gameState);
 
-    // 1 is mafia | 2 is detective | 3 is doctor | 4 is citizen
+//     // 1 is mafia | 2 is detective | 3 is doctor | 4 is citizen
 
-    address public owner;
-    uint8 playerCount = 0;
-    uint8 gameCount = 0;
-    uint8 public gameState = 0;
+//     address public owner;
+//     uint8 playerCount = 0;
+//     uint8 gameCount = 0;
+//     uint8 public gameState = 0;
 
-    struct Player {
-        uint playerId;
-        address playerAddress;
-        euint8 role;
-        bool alive;
-    }
+//     struct Player {
+//         uint playerId;
+//         address playerAddress;
+//         euint8 role;
+//         bool alive;
+//     }
 
-    mapping(address => Player) public players;
-    mapping(address => bool) joinedGame;
-    //mapping(address => euint8) public target;
-    mapping(uint8 => Player) public idToPlayer;
-    mapping(address => bool) public hasVoted;
-    mapping(address => bool) public hasTakenAction;
-    mapping(uint8 => uint8) public playerVoteCount;
+//     mapping(address => Player) public players;
+//     mapping(address => bool) joinedGame;
+//     //mapping(address => euint8) public target;
+//     mapping(uint8 => Player) public idToPlayer;
+//     mapping(address => bool) public hasVoted;
+//     mapping(address => bool) public hasTakenAction;
+//     mapping(uint8 => uint8) public playerVoteCount;
 
-    euint8 public killedPlayerId;
-    euint8 public savedPlayerId;
-    euint8 public investigatedPlayerId;
-    ebool public isCaught;
+//     euint8 public killedPlayerId;
+//     euint8 public savedPlayerId;
+//     euint8 public investigatedPlayerId;
+//     ebool public isCaught;
 
-    address[] public playersList;
-    address[] public playersTakenActions;
-    uint8 public playerKilled = 255;
-    uint8 public largestVoteCount;
-    uint8 public playerIdWithLargestVoteCount;
-    uint8 public actionCount;
-    uint8 public voteCount;
-    // uint8 public roundCount;
-    uint8 public isMafiaKilled = 255;
-    bool public tieExists = false;
+//     address[] public playersList;
+//     address[] public playersTakenActions;
+//     uint8 public playerKilled = 255;
+//     uint8 public largestVoteCount;
+//     uint8 public playerIdWithLargestVoteCount;
+//     uint8 public actionCount;
+//     uint8 public voteCount;
+//     // uint8 public roundCount;
+//     uint8 public isMafiaKilled = 255;
+//     bool public tieExists = false;
 
-    event Voted(address voter, uint8 playerId, uint8 votes);
+//     event Voted(address voter, uint8 playerId, uint8 votes);
 
-    // constructor(address _ownerAddress) EIP712WithModifier("Authorization token", "1") {
-    //     owner = _ownerAddress;
-    // }
+//     // constructor(address _ownerAddress) EIP712WithModifier("Authorization token", "1") {
+//     //     owner = _ownerAddress;
+//     // }
 
-    constructor() EIP712WithModifier("Authorization token", "1") {
-        owner = msg.sender;
-    }
+//     constructor() EIP712WithModifier("Authorization token", "1") {
+//         owner = msg.sender;
+//     }
 
-    function getPlayersArray() public view returns (address[] memory) {
-        return playersList;
-    }
+//     function getPlayersArray() public view returns (address[] memory) {
+//         return playersList;
+//     }
 
-    function initializeGame(bytes[] calldata roles) public {
-        require(playersList.length > 3);
-        require(roles.length == playersList.length);
-        for (uint8 i = 0; i < playersList.length; i++) {
-            players[playersList[i]] = Player(i, playersList[i], TFHE.asEuint8(roles[i]), true);
-            idToPlayer[i] = Player(i, playersList[i], TFHE.asEuint8(roles[i]), true);
-        }
-        gameCount++;
-        emit InitGame(gameCount);
-        gameState = 1;
-        emit NewState(gameState);
-    }
+//     function initializeGame(bytes[] calldata roles) public {
+//         require(playersList.length > 3);
+//         require(roles.length == playersList.length);
+//         for (uint8 i = 0; i < playersList.length; i++) {
+//             players[playersList[i]] = Player(i, playersList[i], TFHE.asEuint8(roles[i]), true);
+//             idToPlayer[i] = Player(i, playersList[i], TFHE.asEuint8(roles[i]), true);
+//         }
+//         gameCount++;
+//         emit InitGame(gameCount);
+//         gameState = 1;
+//         emit NewState(gameState);
+//     }
 
-    function newGame(bytes[] calldata roles) public {
-        killedPlayerId = TFHE.asEuint8(0);
-        savedPlayerId = TFHE.asEuint8(0);
-        investigatedPlayerId = TFHE.asEuint8(0);
-        isCaught = TFHE.asEbool(false);
-        voteCount = 0;
-        actionCount = 0;
-        for (uint8 i = 0; i < playersList.length; i++) {
-            players[playersList[i]].role = TFHE.asEuint8(roles[i]);
-            players[playersList[i]].alive = true;
-        }
-        gameCount++;
-        emit InitGame(gameCount);
-    }
+//     function newGame(bytes[] calldata roles) public {
+//         killedPlayerId = TFHE.asEuint8(0);
+//         savedPlayerId = TFHE.asEuint8(0);
+//         investigatedPlayerId = TFHE.asEuint8(0);
+//         isCaught = TFHE.asEbool(false);
+//         voteCount = 0;
+//         actionCount = 0;
+//         for (uint8 i = 0; i < playersList.length; i++) {
+//             players[playersList[i]].role = TFHE.asEuint8(roles[i]);
+//             players[playersList[i]].alive = true;
+//         }
+//         gameCount++;
+//         emit InitGame(gameCount);
+//     }
 
-    // join the game
-    function joinGame() public {
-        require(playersList.length < 5);
-        require(!joinedGame[msg.sender]);
-        playersList.push(msg.sender);
-        joinedGame[msg.sender] = true;
-        playerCount++;
-        emit JoinGame(msg.sender, playersList);
-    }
+//     // join the game
+//     function joinGame() public {
+//         require(playersList.length < 5);
+//         require(!joinedGame[msg.sender]);
+//         playersList.push(msg.sender);
+//         joinedGame[msg.sender] = true;
+//         playerCount++;
+//         emit JoinGame(msg.sender, playersList);
+//     }
 
-    // selectedPlayer is an uint8 ciphertext
-    function action(bytes calldata selectedPlayer) public {
-        require(!hasTakenAction[msg.sender], "Already played turn");
+//     // selectedPlayer is an uint8 ciphertext
+//     function action(bytes calldata selectedPlayer) public {
+//         require(!hasTakenAction[msg.sender], "Already played turn");
 
-        // check if player is mafia
-        ebool isMafia = TFHE.eq(TFHE.asEuint8(1), players[msg.sender].role);
-        killedPlayerId = TFHE.add(killedPlayerId, TFHE.cmux(isMafia, TFHE.asEuint8(selectedPlayer), TFHE.asEuint8(0)));
+//         // check if player is mafia
+//         ebool isMafia = TFHE.eq(TFHE.asEuint8(1), players[msg.sender].role);
+//         killedPlayerId = TFHE.add(killedPlayerId, TFHE.cmux(isMafia, TFHE.asEuint8(selectedPlayer), TFHE.asEuint8(0)));
 
-        // check if player is a doctor
-        ebool isDoctor = TFHE.eq(TFHE.asEuint8(3), players[msg.sender].role);
-        savedPlayerId = TFHE.add(savedPlayerId, TFHE.cmux(isDoctor, TFHE.asEuint8(selectedPlayer), TFHE.asEuint8(0)));
+//         // check if player is a doctor
+//         ebool isDoctor = TFHE.eq(TFHE.asEuint8(3), players[msg.sender].role);
+//         savedPlayerId = TFHE.add(savedPlayerId, TFHE.cmux(isDoctor, TFHE.asEuint8(selectedPlayer), TFHE.asEuint8(0)));
 
-        // check if player is detective
-        ebool isDetective = TFHE.eq(TFHE.asEuint8(2), players[msg.sender].role);
-        investigatedPlayerId = TFHE.add(
-            investigatedPlayerId,
-            TFHE.cmux(isDetective, TFHE.asEuint8(selectedPlayer), TFHE.asEuint8(0))
-        );
+//         // check if player is detective
+//         ebool isDetective = TFHE.eq(TFHE.asEuint8(2), players[msg.sender].role);
+//         investigatedPlayerId = TFHE.add(
+//             investigatedPlayerId,
+//             TFHE.cmux(isDetective, TFHE.asEuint8(selectedPlayer), TFHE.asEuint8(0))
+//         );
 
-        hasTakenAction[msg.sender] = true;
-        playersTakenActions.push(msg.sender);
-        emit Action(msg.sender, playersTakenActions);
-        if (actionCount == playersList.length - 1) {
-            revealNextDay();
-            playersTakenActions = new address[](0);
-        }
-        actionCount++;
-    }
+//         hasTakenAction[msg.sender] = true;
+//         playersTakenActions.push(msg.sender);
+//         emit Action(msg.sender, playersTakenActions);
+//         if (actionCount == playersList.length - 1) {
+//             revealNextDay();
+//             playersTakenActions = new address[](0);
+//         }
+//         actionCount++;
+//     }
 
-    function revealNextDay() public {
-        gameState = 2;
-        emit NewState(gameState);
-        ebool isVictimSaved = TFHE.eq(killedPlayerId, savedPlayerId);
-        bool isVictimSavedDecrypted = TFHE.decrypt(isVictimSaved);
+//     function revealNextDay() public {
+//         gameState = 2;
+//         emit NewState(gameState);
+//         ebool isVictimSaved = TFHE.eq(killedPlayerId, savedPlayerId);
+//         bool isVictimSavedDecrypted = TFHE.decrypt(isVictimSaved);
 
-        if (!isVictimSavedDecrypted) {
-            playerKilled = TFHE.decrypt(killedPlayerId);
-            idToPlayer[playerKilled].alive = false;
-            players[idToPlayer[playerKilled].playerAddress].alive = false;
-            voteCount++;
-            // Emit dead event
-            emit NextDay(true);
-            emit Killed(playerKilled);
-        } else {
-            emit NextDay(false);
-        }
+//         if (!isVictimSavedDecrypted) {
+//             playerKilled = TFHE.decrypt(killedPlayerId);
+//             idToPlayer[playerKilled].alive = false;
+//             players[idToPlayer[playerKilled].playerAddress].alive = false;
+//             voteCount++;
+//             // Emit dead event
+//             emit NextDay(true);
+//             emit Killed(playerKilled);
+//         } else {
+//             emit NextDay(false);
+//         }
 
-        euint8 investigatedPlayerIdRole = TFHE.asEuint8(0);
+//         euint8 investigatedPlayerIdRole = TFHE.asEuint8(0);
 
-        for (uint8 i = 0; i < playersList.length; i++) {
-            ebool isMatchingId = TFHE.eq(TFHE.asEuint8(players[playersList[i]].playerId), investigatedPlayerId);
-            investigatedPlayerIdRole = TFHE.add(
-                investigatedPlayerIdRole,
-                TFHE.cmux(isMatchingId, idToPlayer[i].role, TFHE.asEuint8(0))
-            );
-        }
-        isCaught = TFHE.eq(TFHE.asEuint8(1), investigatedPlayerIdRole);
-    }
+//         for (uint8 i = 0; i < playersList.length; i++) {
+//             ebool isMatchingId = TFHE.eq(TFHE.asEuint8(players[playersList[i]].playerId), investigatedPlayerId);
+//             investigatedPlayerIdRole = TFHE.add(
+//                 investigatedPlayerIdRole,
+//                 TFHE.cmux(isMatchingId, idToPlayer[i].role, TFHE.asEuint8(0))
+//             );
+//         }
+//         isCaught = TFHE.eq(TFHE.asEuint8(1), investigatedPlayerIdRole);
+//     }
 
-    function viewCaught(
-        bytes32 publicKey,
-        bytes calldata signature
-    ) public view onlySignedPublicKey(publicKey, signature) returns (bytes memory) {
-        ebool isDetective = TFHE.eq(TFHE.asEuint8(2), players[msg.sender].role);
-        euint8 valid = TFHE.cmux(isDetective, TFHE.asEuint8(isCaught), TFHE.asEuint8(255));
-        return TFHE.reencrypt(valid, publicKey, 0);
-    }
+//     function viewCaught(
+//         bytes32 publicKey,
+//         bytes calldata signature
+//     ) public view onlySignedPublicKey(publicKey, signature) returns (bytes memory) {
+//         ebool isDetective = TFHE.eq(TFHE.asEuint8(2), players[msg.sender].role);
+//         euint8 valid = TFHE.cmux(isDetective, TFHE.asEuint8(isCaught), TFHE.asEuint8(255));
+//         return TFHE.reencrypt(valid, publicKey, 0);
+//     }
 
-    function viewOwnRole(
-        bytes32 publicKey,
-        bytes calldata signature
-    ) public view onlySignedPublicKey(publicKey, signature) returns (bytes memory) {
-        // return TFHE.decrypt(players[msg.sender].role);
-        return TFHE.reencrypt(players[msg.sender].role, publicKey, 0);
-    }
+//     function viewOwnRole(
+//         bytes32 publicKey,
+//         bytes calldata signature
+//     ) public view onlySignedPublicKey(publicKey, signature) returns (bytes memory) {
+//         // return TFHE.decrypt(players[msg.sender].role);
+//         return TFHE.reencrypt(players[msg.sender].role, publicKey, 0);
+//     }
 
-    function castVote(uint8 _playerId) public {
-        require(idToPlayer[_playerId].alive);
-        require(!hasVoted[msg.sender], "You have already voted");
+//     function castVote(uint8 _playerId) public {
+//         require(idToPlayer[_playerId].alive);
+//         require(!hasVoted[msg.sender], "You have already voted");
 
-        playerVoteCount[_playerId]++;
-        hasVoted[msg.sender] = true;
+//         playerVoteCount[_playerId]++;
+//         hasVoted[msg.sender] = true;
 
-        if (largestVoteCount == playerVoteCount[_playerId]) {
-            tieExists = true;
-        }
+//         if (largestVoteCount == playerVoteCount[_playerId]) {
+//             tieExists = true;
+//         }
 
-        if (largestVoteCount == 0) {
-            largestVoteCount = 1;
-            playerIdWithLargestVoteCount = _playerId;
-            tieExists = false;
-        } else if (largestVoteCount < playerVoteCount[_playerId]) {
-            largestVoteCount = playerVoteCount[_playerId];
-            playerIdWithLargestVoteCount = _playerId;
-            tieExists = false;
-        }
-        emit Voted(msg.sender, _playerId, playerVoteCount[_playerId]);
-        // TODO: playersList.length
-        if (voteCount == 4) {
-            checkIfMafiaKilled();
-            // reset vote count back to 0
-        } else {
-            voteCount++;
-        }
-    }
+//         if (largestVoteCount == 0) {
+//             largestVoteCount = 1;
+//             playerIdWithLargestVoteCount = _playerId;
+//             tieExists = false;
+//         } else if (largestVoteCount < playerVoteCount[_playerId]) {
+//             largestVoteCount = playerVoteCount[_playerId];
+//             playerIdWithLargestVoteCount = _playerId;
+//             tieExists = false;
+//         }
+//         emit Voted(msg.sender, _playerId, playerVoteCount[_playerId]);
+//         // TODO: playersList.length
+//         if (voteCount == 4) {
+//             checkIfMafiaKilled();
+//             // reset vote count back to 0
+//         } else {
+//             voteCount++;
+//         }
+//     }
 
-    function checkIfMafiaKilled() public {
-        gameState = 3;
-        emit NewState(gameState);
-        idToPlayer[playerIdWithLargestVoteCount].alive = false;
-        players[idToPlayer[playerIdWithLargestVoteCount].playerAddress].alive = false;
-        uint8 role = TFHE.decrypt(idToPlayer[playerIdWithLargestVoteCount].role);
-        if (role == 1 && !tieExists) {
-            isMafiaKilled = 1; //true
-            emit CheckMafia(true);
-        } else {
-            isMafiaKilled = 0; //false
-            emit CheckMafia(false);
-            // if amount of players > 2
-            // reset game state back to 1
-            // emit NewState event
-        }
-    }
-}
+//     function checkIfMafiaKilled() public {
+//         gameState = 3;
+//         emit NewState(gameState);
+//         idToPlayer[playerIdWithLargestVoteCount].alive = false;
+//         players[idToPlayer[playerIdWithLargestVoteCount].playerAddress].alive = false;
+//         uint8 role = TFHE.decrypt(idToPlayer[playerIdWithLargestVoteCount].role);
+//         if (role == 1 && !tieExists) {
+//             isMafiaKilled = 1; //true
+//             emit CheckMafia(true);
+//         } else {
+//             isMafiaKilled = 0; //false
+//             emit CheckMafia(false);
+//             // if amount of players > 2
+//             // reset game state back to 1
+//             // emit NewState event
+//         }
+//     }
+// }
